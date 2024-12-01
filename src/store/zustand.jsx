@@ -3,9 +3,10 @@ import { persist } from "zustand/middleware";
 
 const useQuestionStore = create(
   persist(
-    (set) => ({
+    (set, get) => ({
       question: [],
       userAnswer: [],
+      questionTimes: {}, // To store time spent on each question
       error: null,
       totalTime: 0,
       trueAnswer: 0,
@@ -53,8 +54,7 @@ const useQuestionStore = create(
       },
 
       authUser: (auth) => set((state) => ({ ...state, auth })),
-      
-      // Update this action to count correct and incorrect answers
+
       addAnswer: ({ question, answer }) =>
         set((state) => {
           const isCorrect = question.correct_answer === answer;
@@ -69,12 +69,28 @@ const useQuestionStore = create(
             falseAnswer: isCorrect ? state.falseAnswer : state.falseAnswer + 1,
           };
         }),
-      
+
+      // Save time spent on a specific question
+      saveQuestionTime: (index, time) =>
+        set((state) => ({
+          ...state,
+          questionTimes: {
+            ...state.questionTimes,
+            [index]: time,
+          },
+        })),
+
+      // Retrieve time for a specific question
+      getQuestionTime: (index) => {
+        const { questionTimes } = get();
+        return questionTimes[index] || 0;
+      },
 
       logoutUser: () =>
         set({
           question: [],
           userAnswer: [],
+          questionTimes: {}, // Reset question-specific timers
           error: null,
           totalTime: 0,
           trueAnswer: 0,
@@ -87,6 +103,8 @@ const useQuestionStore = create(
         set((state) => ({
           ...state,
           question: [],
+          userAnswer: [],
+          questionTimes: {}, // Reset question-specific timers
           trueAnswer: 0,
           falseAnswer: 0,
           error: null,
@@ -110,6 +128,5 @@ const useQuestionStore = create(
     }
   )
 );
-
 
 export default useQuestionStore;

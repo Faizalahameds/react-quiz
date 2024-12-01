@@ -1,7 +1,7 @@
+import { useLocation, useNavigate } from "react-router-dom";
 import useQuestionStore from "../../store/zustand";
-import { useNavigate } from "react-router-dom";
-import { useEffect } from "react";
 import AnimateProvider from "../../components/AnimateProvider/AnimateProvider";
+import { useEffect } from "react";
 
 function Success() {
   const {
@@ -14,18 +14,21 @@ function Success() {
   } = useQuestionStore();
 
   const navigate = useNavigate();
-  const totalQuestions = allQuestion.length; // Use dynamic length
-  const score = (trueAnswer * 100) / totalQuestions; // Correct score calculation
+  const location = useLocation();
+  const { questionTimes } = location.state || {}; // Retrieve questionTimes passed from SingleQuestion
+
+  const totalQuestions = allQuestion.length;
+  const score = (trueAnswer * 100) / totalQuestions;
   const indxColor =
     score >= 80 ? "#10b981" : score >= 60 ? "#F59E0B" : "#dc2626";
 
   useEffect(() => {
-    setTimeStamp(0); // Reset timestamp or perform any cleanup
+    setTimeStamp(0);
   }, []);
 
   const handleClick = () => {
     resetQuestion();
-    navigate("/"); // Navigate back to the home page or dashboard
+    navigate("/"); // This will navigate to the home page/dashboard
   };
 
   return (
@@ -38,9 +41,9 @@ function Success() {
         style={{
           background: indxColor,
         }}
-        className={`text-5xl font-bold mx-auto p-5 rounded-full bg-red-500 md:text-6xl text-neutral-100`}
+        className={`text-5xl font-bold mx-auto p-5 rounded-full md:text-6xl text-neutral-100`}
       >
-        {score} %
+        {score}
       </h1>
 
       <div className="text-xs md:text-sm text-neutral-600 font-medium flex flex-col space-y-1">
@@ -58,31 +61,59 @@ function Success() {
 
       <button
         onClick={handleClick}
-        className="grid place-items-center text-neutral-50 bg-orange-500 rounded-full py-2 hover:text-neutral-50 text-sm font-semibold"
+        className="bg-orange-500 text-white font-bold p-2 rounded-full py-2 hover:bg-neutral-50 hover:text-orange-500 transition"
       >
         Back to dashboard
       </button>
 
-      {/* Answer Summary
-      <h3 className="text-center text-neutral-600 font-semibold md:text-lg pt-[100px]">
+      <h3 className="text-center text-neutral-600 font-semibold md:text-lg pt-[40px] pb-4">
         Answer Summary
       </h3>
 
-      {/* Render Summary of Answers */}
-      {/* {userAnswer.length > 0 ? (
+      {userAnswer.length > 0 ? (
         userAnswer.map((answerItem, index) => (
-          <div key={index} className="mb-4">
-            <p><strong>Question:</strong> {answerItem.question?.question}</p>
-            <p><strong>Your answer:</strong> {answerItem.answer}</p>
-            <p><strong>Correct answer:</strong> {answerItem.question?.correct_answer}</p>
-            <p className={answerItem.isCorrect ? "text-green-500" : "text-red-500"}>
-              {answerItem.isCorrect ? "Correct" : "Incorrect"}
-            </p>
+          <div key={index} className="bg-white p-4 rounded-lg shadow-md mb-6">
+            <div className="flex flex-col space-y-2">
+              <div className="flex justify-between text-neutral-800 font-semibold">
+                <span>Question:</span>
+                <span className="font-normal">{answerItem.question?.question}</span>
+              </div>
+
+              <div className="flex justify-between text-neutral-800 font-semibold">
+                <span>Your answer:</span>
+                <span className="font-normal">{answerItem.answer}</span>
+              </div>
+
+              <div className="flex justify-between text-neutral-800 font-semibold">
+                <span>Correct answer:</span>
+                <span className="font-normal">{answerItem.question?.correct_answer}</span>
+              </div>
+
+              <div
+                className={`text-xl font-semibold ${
+                  answerItem.isCorrect ? "text-green-500" : "text-red-500"
+                }`}
+              >
+                {answerItem.isCorrect ? "Correct" : "Incorrect"}
+              </div>
+
+              {/* Time Taken */}
+              <div className="flex justify-between text-neutral-800 font-semibold">
+                <span>Time Taken:</span>
+                <span className="font-normal">
+                  {questionTimes[index]
+                    ? `${Math.floor(questionTimes[index] / 60)}:${String(
+                        questionTimes[index] % 60
+                      ).padStart(2, "0")}`
+                    : "N/A"}
+                </span>
+              </div>
+            </div>
           </div>
         ))
       ) : (
         <p>No answers submitted yet.</p>
-      )} */} 
+      )}
     </AnimateProvider>
   );
 }

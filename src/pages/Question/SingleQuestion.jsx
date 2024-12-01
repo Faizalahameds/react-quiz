@@ -7,8 +7,10 @@ function SingleQuestion() {
   const { question: SingleQuestion, addAnswer } = useQuestionStore();
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState({}); // To track user's answers
-  const [timeRemaining, setTimeRemaining] = useState(40); // 10 minutes in seconds
+  const [timeRemaining, setTimeRemaining] = useState(600); // Main quiz timer in seconds
   const [extraTimeAdded, setExtraTimeAdded] = useState(false); // To track if extra time was added
+  const [questionTimers, setQuestionTimers] = useState({}); // Per-question timer state
+  const [questionTimes, setQuestionTimes] = useState({}); // Track time for each question
   const navigate = useNavigate();
 
   const handleClick = (index) => {
@@ -16,46 +18,69 @@ function SingleQuestion() {
   };
 
   const handleAnswer = (selectedOption) => {
-    const currentQuestion = SingleQuestion[currentQuestionIndex];
-  
-    // Update the answer tracking state
-    setAnswers((prev) => ({
-      ...prev,
-      [currentQuestionIndex]: selectedOption,
-    }));
-  
-    // Store the answer in Zustand
-    addAnswer({
-      question: currentQuestion,
-      answer: selectedOption,
-    });
-  };
-  
+  const currentQuestion = SingleQuestion[currentQuestionIndex];
+
+  // Update the answer tracking state, always overwrite the answer for the current question
+  setAnswers((prev) => ({
+    ...prev,
+    [currentQuestionIndex]: selectedOption,
+  }));
+
+  // Store the answer in Zustand, updating with the most recent selection
+  addAnswer({
+    question: currentQuestion,
+    answer: selectedOption,
+  });
+
+  // Stop the timer and record the time for this question (only if it's the first answer)
+  const elapsedTime = questionTimers[currentQuestionIndex] || 0;
+  setQuestionTimes((prev) => ({
+    ...prev,
+    [currentQuestionIndex]: elapsedTime,
+  }));
+};
+
+
   const handleFinish = () => {
-    navigate("/success"); // Redirect to the score page
+    navigate("/success", { state: { questionTimes } }); // Pass questionTimes to Success page
   };
 
   const currentQuestion = SingleQuestion?.[currentQuestionIndex];
   const allAttempted = Object.keys(answers).length === SingleQuestion.length;
 
-  // Timer countdown effect
+  // Timer countdown effect for the main quiz
   useEffect(() => {
     if (timeRemaining === 0) {
       handleFinish(); // Automatically finish the quiz when time is up
       return;
     }
 
-    const timerInterval = setInterval(() => {
+    const mainTimerInterval = setInterval(() => {
       setTimeRemaining((prev) => prev - 1);
     }, 1000);
 
-    return () => clearInterval(timerInterval); // Cleanup on unmount or timer reach 0
+    return () => clearInterval(mainTimerInterval); // Cleanup on unmount or timer reach 0
   }, [timeRemaining]);
+
+  // Timer countdown effect for the current question
+  useEffect(() => {
+    const questionKey = currentQuestionIndex;
+    if (!SingleQuestion || SingleQuestion.length === 0) return;
+
+    const interval = setInterval(() => {
+      setQuestionTimers((prev) => ({
+        ...prev,
+        [questionKey]: (prev[questionKey] || 0) + 1,
+      }));
+    }, 1000);
+
+    return () => clearInterval(interval); // Clear timer when moving away from the question
+  }, [currentQuestionIndex, SingleQuestion]);
 
   // Handle adding extra time
   const handleAddExtraTime = () => {
-    if (timeRemaining <= 30 && !extraTimeAdded) {
-      setTimeRemaining((prev) => prev + 180); // Add 3 minutes (180 seconds)
+    if (timeRemaining <= 120 && !extraTimeAdded) {
+      setTimeRemaining((prev) => prev + 300); // Add 3 minutes (180 seconds)
       setExtraTimeAdded(true); // Prevent adding extra time again
     }
   };
@@ -63,6 +88,11 @@ function SingleQuestion() {
   // Convert timeRemaining to minutes and seconds
   const minutes = Math.floor(timeRemaining / 60);
   const seconds = timeRemaining % 60;
+
+  // Per-question elapsed time
+  const questionElapsedTime = questionTimers[currentQuestionIndex] || 0;
+  const questionMinutes = Math.floor(questionElapsedTime / 60);
+  const questionSeconds = questionElapsedTime % 60;
 
   // Show the "Add Extra Time" button if there's less than 30 seconds
   const showAddExtraTimeButton = timeRemaining <= 30 && !extraTimeAdded;
@@ -73,13 +103,17 @@ function SingleQuestion() {
 
   return (
     <AnimateProvider className="max-w-4xl mx-auto p-5">
-      <h1 className="text-lg font-semibold mb-5 text-orange-900">
-        Exam Questions
-      </h1>
+      <h1 className="text-lg font-semibold mb-5 text-orange-900">Exam Questions</h1>
 
       {/* Timer Display */}
       <div className="text-center text-xl font-bold mb-5">
         Time Remaining: {minutes}:{seconds < 10 ? `0${seconds}` : seconds}
+      </div>
+
+      {/* Question Timer */}
+      <div className="text-center text-lg font-medium mb-5 text-blue-600">
+        Time Spent on This Question: {questionMinutes}:
+        {questionSeconds < 10 ? `0${questionSeconds}` : questionSeconds}
       </div>
 
       {/* Show Add Extra Time Button */}
@@ -87,9 +121,9 @@ function SingleQuestion() {
         <div className="text-center mb-5">
           <button
             onClick={handleAddExtraTime}
-            className="bg-orange-500 text-white font-bold p-2 rounded-lg hover:bg-blue-600"
+            className="bg-orange-500 text-white font-bold p-2 rounded-lg hover:bg-neutral-50 hover:text-orange-500 transition"
           >
-             Do You Want To Add Extra 3 Minutes ?
+            Do You Want To Add Extra 5 Minutes?
           </button>
         </div>
       )}
@@ -141,6 +175,28 @@ function SingleQuestion() {
               </button>
             ))}
         </div>
+      </div>
+
+      {/* Navigation Buttons */}
+      <div className="flex justify-between mt-5">
+        <button
+          onClick={() => setCurrentQuestionIndex((prev) => Math.max(prev - 1, 0))}
+          className="bg-orange-500 text-white font-bold p-2 rounded-lg hover:bg-neutral-50 hover:text-orange-500 transition"
+          disabled={currentQuestionIndex === 0}
+        >
+          Previous
+        </button>
+        <button
+          onClick={() =>
+            setCurrentQuestionIndex((prev) =>
+              Math.min(prev + 1, SingleQuestion.length - 1)
+            )
+          }
+          className="bg-orange-500 text-white font-bold p-2 rounded-lg hover:bg-neutral-50 hover:text-orange-500 transition"
+          disabled={currentQuestionIndex === SingleQuestion.length - 1}
+        >
+          Next
+        </button>
       </div>
 
       {/* Finish Button */}
